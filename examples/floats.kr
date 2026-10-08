@@ -1,0 +1,19 @@
+fn average(a: Float, b: Float) -> Float {
+    return (a + b) / 2.0;
+}
+
+fn isLarge(x: Float) -> Bool {
+    return x > 100.0;
+}
+
+print(average(3.0, 7.0));
+print(isLarge(250.5));
+print(isLarge(10.0));
+
+let total = 0.0;
+let count = 0.0;
+while (count < 5.0) {
+    total = total + average(count, count);
+    count = count + 1.0;
+}
+print(total);

@@ -1,0 +1,14 @@
+let x: Int = "oops";
+let y = 1 + 2.0;
+let z: potato = 5;
+
+if (1) {
+    print("unreachable condition check");
+}
+
+fn f(a: Int) -> Int {
+    return "not an int";
+}
+
+print(f(1, 2, 3));
+undeclaredVariable = 10;

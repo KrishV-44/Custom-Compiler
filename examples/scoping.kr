@@ -1,0 +1,22 @@
+let x = 1;
+print(x);
+
+{
+    let x = 2;
+    print(x);
+    {
+        let x = 3;
+        print(x);
+    }
+    print(x);
+}
+
+print(x);
+
+fn shadowParam(x: Int) -> Int {
+    let x = x + 100;
+    return x;
+}
+
+print(shadowParam(5));
+print(x);

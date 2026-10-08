@@ -1,0 +1,12 @@
+fn greet(name: String) -> String {
+    return "Hello, " + name + "!";
+}
+
+let a = "match";
+let b = "match";
+let c = "different";
+
+print(greet("world"));
+print(a == b);
+print(a == c);
+print(a != c);
