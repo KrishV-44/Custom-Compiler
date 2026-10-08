@@ -14,7 +14,7 @@ print(x);
 print(x);
 
 fn shadowParam(x: Int) -> Int {
-    let x = x + 100;
+    x = x + 100;
     return x;
 }
 
