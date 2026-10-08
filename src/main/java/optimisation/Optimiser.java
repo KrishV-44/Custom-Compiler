@@ -26,13 +26,18 @@ public class Optimiser {
         return current;
     }
 
-    private IRProgram runOnce(IRProgram program) {
+    public IRProgram runOnce(IRProgram program) {
         List<IRFunction> newFunctions = new ArrayList<>();
         for (IRFunction fn : program.functions()) {
-            newFunctions.add(new IRFunction(fn.name(), fn.paramNames(), runPasses(fn.instructions())));
+            newFunctions.add(new IRFunction(
+                fn.name(),
+                fn.paramNames(),
+                runPasses(fn.instructions()),
+                fn.varTypes()          // <-- carry through unchanged
+            ));
         }
         List<IRInstruction> newTopLevel = runPasses(program.topLevel());
-        return new IRProgram(newFunctions, newTopLevel);
+        return new IRProgram(newFunctions, newTopLevel, program.topLevelVarTypes());   // <-- carry through unchanged
     }
 
     private List<IRInstruction> runPasses(List<IRInstruction> instructions) {

@@ -5,15 +5,22 @@ import ast.Stmt;
 import lexer.Token;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 public class TypeChecker {
     private final List<SemanticError> errors = new ArrayList<>();
     private SymbolTable scope = new SymbolTable();
     private Type currentReturnType = null;   // non-null only while checking a function body
+    private final Map<Expr, Type> expressionTypes = new IdentityHashMap<>();
 
     public List<SemanticError> check(List<Stmt> statements) {
         checkStatements(statements);
         return errors;
+    }
+
+    public Map<Expr, Type> getExpressionTypes() {
+        return expressionTypes;
     }
 
     // ---------- statements ----------
@@ -152,7 +159,7 @@ public class TypeChecker {
     // ---------- expressions ----------
 
     private Type checkExpr(Expr expr) {
-        return switch (expr) {
+        Type type = switch (expr) {
             case Expr.Literal lit -> checkLit(lit);
             case Expr.Variable v -> checkVar(v);
             case Expr.Assign a -> checkAssign(a);
@@ -160,6 +167,8 @@ public class TypeChecker {
             case Expr.Binary b -> checkBinary(b);
             case Expr.Call c -> checkCall(c);
         };
+        expressionTypes.put(expr, type);
+        return type;
     }
 
     private Type checkLit(Expr.Literal lit) {

@@ -40,7 +40,7 @@ public class Lexer {
             startColumn = column;
             scanToken();
         }
-        tokens.add(new Token(TokenType.EOF, "", null, line, current));
+        tokens.add(new Token(TokenType.EOF, "", null, line, column));
         return tokens;
     }
 

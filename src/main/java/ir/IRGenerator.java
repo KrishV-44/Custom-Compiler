@@ -15,14 +15,11 @@ import java.util.Map;
 public class IRGenerator {
     private final Map<Expr, Type> expressionTypes;
     private List<IRInstruction> instructions;   // current function's growing list
+    private Map<String, Type> varTypes;         // current function's name -> Type map
     private int tempCounter = 0;
     private int labelCounter = 0;
 
     // ---------- scoping ----------
-    // Mirrors semantic.SymbolTable's nested scopes, but maps a source name to a
-    // unique IR name instead of a type. This stops two variables that share a
-    // source name (e.g. shadowing in a nested block) from colliding into the
-    // same IR name.
     private final Deque<Map<String, String>> scopes = new ArrayDeque<>();
     private int uniqueCounter = 0;
 
@@ -38,20 +35,17 @@ public class IRGenerator {
         scopes.pop();
     }
 
-    // creates a fresh unique IR name for a newly-declared source variable
     private String declareVar(String sourceName) {
         String uniqueName = (scopes.size() == 1) ? sourceName : sourceName + "$" + (++uniqueCounter);
         scopes.peek().put(sourceName, uniqueName);
         return uniqueName;
     }
 
-    // finds the current IR name for a source variable, searching outward
     private String resolveVar(String sourceName) {
         for (Map<String, String> scope : scopes) {
             if (scope.containsKey(sourceName)) return scope.get(sourceName);
         }
         throw new IllegalStateException("Unresolved variable in IR generation: " + sourceName);
-        // shouldn't happen: the type checker already guarantees this name exists
     }
 
     // ---------- entry point ----------
@@ -59,8 +53,10 @@ public class IRGenerator {
     public IRProgram generate(List<Stmt> statements) {
         List<IRFunction> functions = new ArrayList<>();
         List<IRInstruction> topLevel = new ArrayList<>();
+        Map<String, Type> topLevelVarTypes = new HashMap<>();
 
         instructions = topLevel;
+        varTypes = topLevelVarTypes;
         pushScope();
         for (Stmt s : statements) {
             if (s instanceof Stmt.Function fn) {
@@ -71,19 +67,24 @@ public class IRGenerator {
         }
         popScope();
 
-        return new IRProgram(functions, topLevel);
+        return new IRProgram(functions, topLevel, topLevelVarTypes);
     }
 
     private IRFunction generateFunction(Stmt.Function fn) {
         List<IRInstruction> previousInstructions = instructions;
+        Map<String, Type> previousVarTypes = varTypes;
+
         List<IRInstruction> functionInstructions = new ArrayList<>();
+        Map<String, Type> functionVarTypes = new HashMap<>();
         instructions = functionInstructions;
+        varTypes = functionVarTypes;
 
         pushScope();
         List<String> paramNames = new ArrayList<>();
         for (Stmt.Param p : fn.params()) {
             String uniqueName = declareVar(p.name().lexeme());
             paramNames.add(uniqueName);
+            varTypes.put(uniqueName, resolveTypeName(p.type().lexeme()));
         }
 
         for (Stmt s : fn.body().statements()) {
@@ -92,7 +93,23 @@ public class IRGenerator {
         popScope();
 
         instructions = previousInstructions;
-        return new IRFunction(fn.name().lexeme(), paramNames, functionInstructions);
+        varTypes = previousVarTypes;
+
+        return new IRFunction(fn.name().lexeme(), paramNames, functionInstructions, functionVarTypes);
+    }
+
+    // Small standalone copy of TypeChecker.resolveType, needed here because a
+    // parameter's type is only ever a Token (e.g. "Int") in the AST -- it was
+    // never run through checkExpr, so it has no entry in expressionTypes.
+    private Type resolveTypeName(String lexeme) {
+        return switch (lexeme) {
+            case "Int" -> Type.INT;
+            case "Float" -> Type.FLOAT;
+            case "Bool" -> Type.BOOL;
+            case "String" -> Type.STRING;
+            case "Void" -> Type.VOID;
+            default -> Type.ERROR;   // the type checker already rejected this program if truly invalid
+        };
     }
 
     // ---------- statements ----------
@@ -100,8 +117,10 @@ public class IRGenerator {
     private void genStmt(Stmt stmt) {
         switch (stmt) {
             case Stmt.Let let -> {
+                Type type = expressionTypes.get(let.initialiser());
                 IRValue value = genExpr(let.initialiser());
                 String uniqueName = declareVar(let.name().lexeme());
+                varTypes.put(uniqueName, type);
                 instructions.add(new IRInstruction.Copy(uniqueName, value));
             }
             case Stmt.ExprStmt e -> genExpr(e.expression());
@@ -169,6 +188,7 @@ public class IRGenerator {
             case Expr.Assign a -> {
                 IRValue value = genExpr(a.value());
                 String uniqueName = resolveVar(a.name().lexeme());   // must already exist
+                // no varTypes update needed: the variable's type can't change on reassignment
                 instructions.add(new IRInstruction.Copy(uniqueName, value));
                 yield new IRValue.Temp(uniqueName);
             }
@@ -183,18 +203,21 @@ public class IRGenerator {
         String op = mapOperator(b.operator(), type);
 
         String dest = newTemp();
+        varTypes.put(dest, type);
         instructions.add(new IRInstruction.BinOp(dest, op, left, right));
         return new IRValue.Temp(dest);
     }
 
     private IRValue genUnary(Expr.Unary u) {
         IRValue operand = genExpr(u.right());
+        Type type = expressionTypes.get(u);
         String op = switch (u.operator().type()) {
             case MINUS -> "NEG";
             case BANG -> "NOT";
             default -> throw new IllegalStateException("Unhandled unary operator: " + u.operator().lexeme());
         };
         String dest = newTemp();
+        varTypes.put(dest, type);
         instructions.add(new IRInstruction.UnaryOp(dest, op, operand));
         return new IRValue.Temp(dest);
     }
@@ -214,6 +237,8 @@ public class IRGenerator {
         }
 
         String dest = newTemp();
+        Type returnType = expressionTypes.get(call);   // the checked call expression's type
+        varTypes.put(dest, returnType);
         instructions.add(new IRInstruction.Call(dest, functionName, args));
         return new IRValue.Temp(dest);
     }

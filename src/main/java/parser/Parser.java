@@ -88,6 +88,7 @@ public class Parser {
     }
 
     private Stmt ifStmt() {
+        Token keyword = previous();
         consume(TokenType.LPAREN, "Expected '(' after 'if'");
         Expr condition = expression();
         consume(TokenType.RPAREN, "Expected ')' after condition");
@@ -103,16 +104,17 @@ public class Parser {
                 elseBranch = block();
             }
         }
-        return new If(condition, thenBranch, elseBranch);
+        return new If(keyword, condition, thenBranch, elseBranch);
     }
 
     private Stmt whileStmt() {
+        Token keyword = previous();
         consume(TokenType.LPAREN, "Expected '(' after 'while'");
         Expr condition = expression();
         consume(TokenType.RPAREN, "Expected ')' after condition");
         consume(TokenType.LBRACE, "Expected '{' before while-body");
         Block body = block();
-        return new While(condition, body);
+        return new While(keyword, condition, body);
     }
 
     private Stmt returnStmt() {

@@ -12,10 +12,10 @@ public sealed interface Stmt {
 
     record Block(List<Stmt> statements) implements Stmt {}
 
-    record If(Expr condition, Stmt thenBranch, Stmt elseBranch) implements Stmt {}
+    record If(Token keyword, Expr condition, Stmt thenBranch, Stmt elseBranch) implements Stmt {}
     // elseBranch is nullable
 
-    record While(Expr condition, Stmt body) implements Stmt {}
+    record While(Token keyword, Expr condition, Stmt body) implements Stmt {}
 
     record Return(Token keyword, Expr value) implements Stmt {}
     // value is nullable - bare `return;`
